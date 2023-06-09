@@ -1,0 +1,75 @@
+ 
+-------------------------
+3.2 planning 
+1. Should the server accept calls from everyone, or just a subset of users?
+For this project, the server should accept calls from everyone. If the server is intended to be public, accepting calls from everyone might be necessary, 
+however, access should be restricted to a subset of users, depending on the sensitivity of the data or functionality being exposed. 
+------
+2. Should authentication etc. be provided by the RPC framework, or by the functions that use the RPC framework?
+For this project, there's no need to implement authentication. Typically, authentication should be part of the RPC framework, because it is a general concern that applies to all RPC operations.
+Including authentication in the RPC framework ensures the consistently applied and managed. It also simplifies the implementation of RPC functions
+------
+3. What transport layer protocol should be used? What are the trade-offs?
+TCP(SOCK_STREAM) should be used as the transport layer protocol, as it provides reliable, connection-oriented communication, ensuring that messages are delivered in order and without errors. 
+The trade-offs include increased overhead and latency compared to connectionless protocols like UDP. However, TCP's reliability is more suitable for an RPC system.
+------
+4. In which function(s) should the socket(s) be created?
+Sockets should be created in the rpc_init_server for the server and the rpc_init_client for the client. 
+This is a typical design since these initialization functions set up the necessary resources for the server and client to operate.
+------
+5. Should rpc_client and rpc_server be allocated dynamically or statically? What are the implications for the client and server code?
+For this project, both rpc_client and rpc_server should be allocated dynamically. This allows for greater flexibility in handling multiple clients and servers. 
+The implication is that memory management (allocation and deallocation) needs to be carefully handled to avoid memory leaks or corruption.
+------
+6. What happens if one host uses big-endian byte order and the other uses little-endian? How does that relate to “network byte order”?
+Usually network byte order (big-endian) is a standardized order for transmitting data over computer networks. In such a case, data must be converted to network byte order (big-endian) before transmission, 
+and then converted back to the host byte order upon receipt. converting host byte order to big-endian and vice versa using the htobe64 and be64toh functions ensures data serialization formats and protocols.
+-------------------------
+3.3 protocol
+1. Protocol Overview
+This project involves building a custom Remote Procedure Call (RPC) system that enables software applications to communicate over a network. The RPC system allows the client to make requests to a server as if 
+invoking a local function, providing a seamless interface for distributed systems. The system is built in C, runs on a Linux-based cloud VM, and the code is written without relying on existing RPC libraries.
+-------
+2. RPC System Architecture
+The RPC system uses a client-server architecture, encapsulated in rpc.c and rpc.h. This system can be integrated with either a client or server, and the proposed API should be followed closely. During testing, 
+server and client programs may run on the same machine, such as the VM.
+-------
+3. RPC API Description
+This RPC API includes several data structures and functions. The main data structures include rpc_server, rpc_client, rpc_data, and rpc_handle. 
+The main functions are rpc_init_server, rpc_register, rpc_serve_all, rpc_init_client, rpc_find, rpc_call, rpc_close_client, and rpc_data_free.
+Data Structures:
+rpc_data: The payload data for requests/responses. It contains an integer (data1), a size representing the length of a data block (data2_len), and a pointer to a data block (data2).
+func_entry_t: A structure used to map function names to their handlers. It contains a character array (name) and a pointer to an rpc_handler function (handler).
+rpc_server and rpc_client: Represent the server and client states, respectively.
+rpc_handle: A handle for the remote function.
+*func_entry_t*
+The func_entry_t structure plays a crucial role in the RPC system by mapping a function name to its handler function in the server's function registry. Each func_entry_t contains the name of the function and the 
+corresponding rpc_handler function that should be invoked when a remote call to the named function is received.
+The rpc_handler type is a pointer to a function that takes a pointer to rpc_data as input and returns a pointer to rpc_data as output. 
+These handlers are what execute the actual function logic when a remote procedure call is made.
+Functions:
+Server functions: rpc_init_server (initialize server state), rpc_register (register a function), and rpc_serve_all (start serving requests).
+Client functions: rpc_init_client (initialize client state), rpc_find (find a remote function by name), rpc_call (call remote function using handle), and rpc_close_client (clean up client state and close client).
+Shared function: rpc_data_free (free a rpc_data struct).
+-------
+4. Server Example
+In server.c, the server is initialized at port 3000. A function named "add2" is registered, which adds two signed 8-bit numbers. The operands are passed through data1 and data2 of rpc_data. The server then 
+starts serving requests. If initialization or registration fails, an error message is printed to stderr, and the program exits with failure.
+-------
+5. Client Example
+In client.c, a client is initialized to connect to the server at "::1", port 3000. The client finds the remote function "add2", prepares request data, and calls the function. The request data includes the 
+left operand in data1 and the right operand in data2. The client interprets the response, checks if any error occurs during function call, and cleans up after all operations.
+-------
+6. Packet Structure
+The packet structure follows the rpc_data structure:
+| data1 (4 bytes) | data2_len (4 bytes) | data2 (variable length) |
+data1: An integer to store the first data element.
+data2_len: A size_t type value that indicates the size of data2.
+data2: A void pointer that can be used to point to any type of data.
+-------
+7. Error Handling
+This protocol will handle routine failures like non-existent procedures by returning an error response. If a client requests a function that does not exist, an error message "Function add2 does not exist" is printed. 
+If a function call fails, an error message "Function call of add2 failed" is printed. If any issue occurs during server initialization or function registration, an error message is printed and the program exits with failure.
+-------
+8. Network Protocols
+The system is expected to run over TCP/IP, where TCP ensures reliable and ordered data delivery, and IP handles routing. This system will also work with IPv6 addresses, ensuring compatibility with modern network infrastructure.
